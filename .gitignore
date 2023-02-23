@@ -93,6 +93,9 @@ ipch/
 *.vspx
 *.sap
 
+# Visual Studio Code
+.vscode/
+
 # TFS 2012 Local Workspace
 $tf/
 
@@ -291,6 +294,9 @@ __pycache__/
 Generated Files/
 src/GraphControl/GraphingImplOverrides.props
 src/CalcViewModel/DataLoaders/DataLoaderConstants.h
-!/build/config/TRexDefs/**
-!src/Calculator/TemporaryKey.pfx
-!src/CalculatorUnitTests/CalculatorUnitTests_TemporaryKey.pfx
+!src/Calculator/WindowsDev_TemporaryKey.pfx
+!src/CalculatorUnitTests/WindowsDev_TemporaryKey.pfx
+!src/x64
+!src/x86
+!src/out
+!src/ARM

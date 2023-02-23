@@ -5,9 +5,8 @@
 
 #include "pch.h"
 #include "NarratorNotifier.h"
-#include "NarratorAnnouncementHostFactory.h"
 
-using namespace CalculatorApp::Common::Automation;
+using namespace CalculatorApp::ViewModel::Common::Automation;
 using namespace Platform;
 using namespace Windows::UI::Xaml;
 using namespace Windows::UI::Xaml::Automation;
@@ -17,14 +16,22 @@ DependencyProperty ^ NarratorNotifier::s_announcementProperty;
 
 NarratorNotifier::NarratorNotifier()
 {
-    m_announcementHost = NarratorAnnouncementHostFactory::MakeHost();
 }
 
 void NarratorNotifier::Announce(NarratorAnnouncement ^ announcement)
 {
-    if (NarratorAnnouncement::IsValid(announcement) && m_announcementHost != nullptr)
+    if (NarratorAnnouncement::IsValid(announcement))
     {
-        m_announcementHost->Announce(announcement);
+        if (m_announcementElement == nullptr)
+        {
+            m_announcementElement = ref new Windows::UI::Xaml::Controls::TextBlock();
+        }
+
+        auto peer = FrameworkElementAutomationPeer::FromElement(m_announcementElement);
+        if (peer != nullptr)
+        {
+            peer->RaiseNotificationEvent(announcement->Kind, announcement->Processing, announcement->Announcement, announcement->ActivityId);
+        }
     }
 }
 

@@ -4,10 +4,11 @@
 #include "pch.h"
 #include "NarratorAnnouncement.h"
 
-using namespace CalculatorApp::Common::Automation;
+using namespace CalculatorApp::ViewModel::Common::Automation;
 using namespace Platform;
+using namespace Windows::UI::Xaml::Automation::Peers;
 
-namespace CalculatorApp::Common::Automation
+namespace CalculatorApp::ViewModel::Common::Automation
 {
     namespace CalculatorActivityIds
     {
@@ -17,11 +18,19 @@ namespace CalculatorApp::Common::Automation
         StringReference MemoryItemChanged(L"MemorySlotChanged");
         StringReference MemoryItemAdded(L"MemorySlotAdded");
         StringReference HistoryCleared(L"HistoryCleared");
+        StringReference HistorySlotCleared(L"HistorySlotCleared");
         StringReference CategoryNameChanged(L"CategoryNameChanged");
         StringReference UpdateCurrencyRates(L"UpdateCurrencyRates");
         StringReference DisplayCopied(L"DisplayCopied");
         StringReference OpenParenthesisCountChanged(L"OpenParenthesisCountChanged");
         StringReference NoParenthesisAdded(L"NoParenthesisAdded");
+        StringReference GraphModeChanged(L"GraphModeChanged");
+        StringReference GraphViewChanged(L"GraphViewChanged");
+        StringReference FunctionRemoved(L"FunctionRemoved");
+        StringReference GraphViewBestFitChanged(L"GraphViewBestFitChanged");
+        StringReference AlwaysOnTop(L"AlwaysOnTop");
+        StringReference BitShiftRadioButtonContent(L"BitShiftRadioButtonContent");
+        StringReference SettingsPageOpened(L"SettingsPageOpened");
     }
 }
 
@@ -98,6 +107,15 @@ NarratorAnnouncement ^ CalculatorAnnouncement::GetHistoryClearedAnnouncement(Str
         announcement, CalculatorActivityIds::HistoryCleared, AutomationNotificationKind::ItemRemoved, AutomationNotificationProcessing::MostRecent);
 }
 
+NarratorAnnouncement ^ CalculatorAnnouncement::GetHistorySlotClearedAnnouncement(String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement,
+        CalculatorActivityIds::HistorySlotCleared,
+        AutomationNotificationKind::ItemRemoved,
+        AutomationNotificationProcessing::ImportantMostRecent);
+}
+
 NarratorAnnouncement ^ CalculatorAnnouncement::GetCategoryNameChangedAnnouncement(String ^ announcement)
 {
     return ref new NarratorAnnouncement(
@@ -136,6 +154,63 @@ NarratorAnnouncement ^ CalculatorAnnouncement::GetNoRightParenthesisAddedAnnounc
     return ref new NarratorAnnouncement(
         announcement,
         CalculatorActivityIds::NoParenthesisAdded,
+        AutomationNotificationKind::ActionCompleted,
+        AutomationNotificationProcessing::ImportantMostRecent);
+}
+
+NarratorAnnouncement ^ CalculatorAnnouncement::GetGraphModeChangedAnnouncement(String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement,
+        CalculatorActivityIds::GraphModeChanged,
+        AutomationNotificationKind::ActionCompleted,
+        AutomationNotificationProcessing::ImportantMostRecent);
+}
+
+NarratorAnnouncement ^ CalculatorAnnouncement::GetGraphViewChangedAnnouncement(String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement,
+        CalculatorActivityIds::GraphViewChanged,
+        AutomationNotificationKind::ActionCompleted,
+        AutomationNotificationProcessing::CurrentThenMostRecent);
+}
+
+NarratorAnnouncement ^ CalculatorAnnouncement::GetFunctionRemovedAnnouncement(String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement, CalculatorActivityIds::FunctionRemoved, AutomationNotificationKind::ItemRemoved, AutomationNotificationProcessing::ImportantMostRecent);
+}
+
+NarratorAnnouncement ^ CalculatorAnnouncement::GetGraphViewBestFitChangedAnnouncement(Platform::String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement,
+        CalculatorActivityIds::GraphViewBestFitChanged,
+        AutomationNotificationKind::ActionCompleted,
+        AutomationNotificationProcessing::MostRecent);
+}
+
+NarratorAnnouncement ^ CalculatorAnnouncement::GetAlwaysOnTopChangedAnnouncement(String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement, CalculatorActivityIds::AlwaysOnTop, AutomationNotificationKind::ActionCompleted, AutomationNotificationProcessing::ImportantMostRecent);
+}
+
+NarratorAnnouncement ^ CalculatorAnnouncement::GetBitShiftRadioButtonCheckedAnnouncement(String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement,
+        CalculatorActivityIds::BitShiftRadioButtonContent,
+        AutomationNotificationKind::ActionCompleted,
+        AutomationNotificationProcessing::ImportantMostRecent);
+}
+
+NarratorAnnouncement ^ CalculatorAnnouncement::GetSettingsPageOpenedAnnouncement(Platform::String ^ announcement)
+{
+    return ref new NarratorAnnouncement(
+        announcement,
+        CalculatorActivityIds::SettingsPageOpened,
         AutomationNotificationKind::ActionCompleted,
         AutomationNotificationProcessing::ImportantMostRecent);
 }

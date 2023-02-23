@@ -13,7 +13,7 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <converters:BooleanNegationConverter x:Key="BooleanNegationConverter"/>
+         <converters:BooleanNegationConverter x:Key="BooleanNegationConverter"/> 
     </UserControl.Resources>
 
     <Grid x:Name="ProgrammerDisplay">
@@ -61,16 +61,15 @@
 
             <RadioButton x:Name="FullKeypad"
                          x:Uid="fullKeypad"
-                         Style="{StaticResource ProgKeypadRadioButtonStyle}"
+                         Style="{StaticResource ConditionalProgKeypadRadioButtonStyle}"
                          AutomationProperties.AutomationId="fullKeypad"
                          Content="&#xe75f;"
                          IsChecked="{x:Bind Model.IsBitFlipChecked, Converter={StaticResource BooleanNegationConverter}, Mode=TwoWay}"/>
             <RadioButton x:Name="BitFlip"
                          x:Uid="bitFlip"
                          Grid.Column="1"
-                         Style="{StaticResource ProgKeypadRadioButtonStyle}"
+                         Style="{StaticResource ConditionalProgKeypadRadioButtonStyle}"
                          AutomationProperties.AutomationId="bitFlip"
-                         Checked="ShowBitFlip"
                          Content="&#xf7d0;"
                          IsChecked="{x:Bind Model.IsBitFlipChecked, Mode=TwoWay}"/>
         </Grid>

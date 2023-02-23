@@ -1,29 +1,24 @@
-# This template contains jobs to run unit tests on the interactive test agents.
+# This template contains jobs to run unit tests.
 
 parameters:
+  isOSSBuild: false
   platform: ''
-  reimageServiceConnection: ''
-  reimageSubscriptionId: ''
-  reimageResourceGroup: ''
+  runsettingsFileName: ''
 
 jobs:
 - job: UnitTests${{ parameters.platform }}
   displayName: UnitTests ${{ parameters.platform }}
   dependsOn: Build${{ parameters.platform }}
+  condition: succeeded()
   pool:
-    name: Essential Experiences Interactive
-  workspace:
-    clean: outputs
+    ${{ if eq(parameters.isOSSBuild, true) }}:
+      name: EssentialExperiencesOpenSource-windows-2022
+    ${{ if eq(parameters.isOSSBuild, false) }}:
+      name: EssentialExperiences-windows-2022
   variables:
     skipComponentGovernanceDetection: true
   steps:
   - checkout: none
-
-  - powershell: Write-Host "##vso[task.setvariable variable=agentInstanceId;isOutput=true]$($env:AgentName -replace '\D+' -as [int])"
-    name: LogAgentStep
-    displayName: Log this agent's instance for later cleanup
-    env:
-      AgentName: $(Agent.Name)
   
   - task: DownloadBuildArtifacts@0
     displayName: Download CalculatorUnitTests
@@ -40,20 +35,5 @@ jobs:
   - task: VSTest@2
     displayName: Run CalculatorUnitTests
     inputs:
-      testAssemblyVer2: $(Build.ArtifactStagingDirectory)\drop\Release\${{ parameters.platform }}\CalculatorUnitTests\AppPackages\CalculatorUnitTests_Test\CalculatorUnitTests.appx
+      testAssemblyVer2: $(Build.ArtifactStagingDirectory)\drop\Release\${{ parameters.platform }}\CalculatorUnitTests\AppPackages\CalculatorUnitTests_Test\CalculatorUnitTests.msix
       otherConsoleOptions: /Platform:${{ parameters.platform }}
-
-- job: CleanUpUnitTests${{ parameters.platform }}
-  dependsOn: UnitTests${{ parameters.platform }}
-  condition: and(always(), ne(dependencies.UnitTests${{ parameters.platform }}.Outputs['LogAgentStep.agentInstanceId'], ''))
-  pool: server
-  variables:
-    agentInstanceId: $[ dependencies.UnitTests${{ parameters.platform }}.outputs['LogAgentStep.agentInstanceId'] ]
-  steps:
-  - task: InvokeRESTAPI@1
-    displayName: Reimage test machine
-    inputs:
-      connectionType: connectedServiceNameARM
-      azureServiceConnection: ${{ parameters.reimageServiceConnection }}
-      urlSuffix: subscriptions/${{ parameters.reimageSubscriptionId }}/resourceGroups/${{ parameters.reimageResourceGroup }}/providers/Microsoft.Compute/virtualMachineScaleSets/essential/reimage?api-version=2018-10-01
-      body: '{ "instanceIds": ["$(agentInstanceId)"] }'

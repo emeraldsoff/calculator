@@ -7,8 +7,8 @@
 #include "UnitConverterDataConstants.h"
 #include "CurrencyDataLoader.h"
 
-using namespace CalculatorApp::Common;
-using namespace CalculatorApp::DataLoaders;
+using namespace CalculatorApp::ViewModel::Common;
+using namespace CalculatorApp::ViewModel::DataLoaders;
 using namespace CalculatorApp::ViewModel;
 using namespace Platform;
 using namespace std;
@@ -22,18 +22,18 @@ UnitConverterDataLoader::UnitConverterDataLoader(GeographicRegion ^ region)
     : m_currentRegionCode(region->CodeTwoLetter)
 {
     m_categoryList = make_shared<vector<UCM::Category>>();
-    m_categoryToUnits = make_shared<UCM::CategoryToUnitVectorMap>();
+    m_categoryIDToUnitsMap = make_shared<UCM::CategoryToUnitVectorMap>();
     m_ratioMap = make_shared<UCM::UnitToUnitToConversionDataMap>();
 }
 
-vector<UCM::Category> UnitConverterDataLoader::LoadOrderedCategories()
+vector<UCM::Category> UnitConverterDataLoader::GetOrderedCategories()
 {
     return *m_categoryList;
 }
 
-vector<UCM::Unit> UnitConverterDataLoader::LoadOrderedUnits(const UCM::Category& category)
+vector<UCM::Unit> UnitConverterDataLoader::GetOrderedUnits(const UCM::Category& category)
 {
-    return m_categoryToUnits->at(category);
+    return this->m_categoryIDToUnitsMap->at(category.id);
 }
 
 unordered_map<UCM::Unit, UCM::ConversionData, UCM::UnitHash> UnitConverterDataLoader::LoadOrderedRatios(const UCM::Unit& unit)
@@ -53,7 +53,7 @@ bool UnitConverterDataLoader::SupportsCategory(const UCM::Category& target)
         GetCategories(supportedCategories);
     }
 
-    static int currencyId = NavCategory::Serialize(ViewMode::Currency);
+    static int currencyId = NavCategoryStates::Serialize(ViewMode::Currency);
     auto itr = find_if(supportedCategories->begin(), supportedCategories->end(), [&](const UCM::Category& category) {
         return currencyId != category.id && target.id == category.id;
     });
@@ -75,18 +75,18 @@ void UnitConverterDataLoader::LoadData()
     GetConversionData(categoryToUnitConversionDataMap);
     GetExplicitConversionData(explicitConversionData); // This is needed for temperature conversions
 
-    m_categoryToUnits->clear();
-    m_ratioMap->clear();
+    this->m_categoryIDToUnitsMap->clear();
+    this->m_ratioMap->clear();
     for (UCM::Category objectCategory : *m_categoryList)
     {
-        ViewMode categoryViewMode = NavCategory::Deserialize(objectCategory.id);
+        ViewMode categoryViewMode = NavCategoryStates::Deserialize(objectCategory.id);
         assert(NavCategory::IsConverterViewMode(categoryViewMode));
         if (categoryViewMode == ViewMode::Currency)
         {
             // Currency is an ordered category but we do not want to process it here
             // because this function is not thread-safe and currency data is asynchronously
             // loaded.
-            m_categoryToUnits->insert(pair<UCM::Category, std::vector<UCM::Unit>>(objectCategory, {}));
+            this->m_categoryIDToUnitsMap->insert(pair<int, std::vector<UCM::Unit>>(objectCategory.id, {}));
             continue;
         }
 
@@ -103,7 +103,7 @@ void UnitConverterDataLoader::LoadData()
         }
 
         // Save units per category
-        m_categoryToUnits->insert(pair<UCM::Category, std::vector<UCM::Unit>>(objectCategory, unitList));
+        this->m_categoryIDToUnitsMap->insert(pair<int, std::vector<UCM::Unit>>(objectCategory.id, unitList));
 
         // For each unit, populate the conversion data
         for (UCM::Unit unit : unitList)
@@ -148,11 +148,11 @@ void UnitConverterDataLoader::LoadData()
 void UnitConverterDataLoader::GetCategories(_In_ shared_ptr<vector<UCM::Category>> categoriesList)
 {
     categoriesList->clear();
-    auto converterCategory = NavCategoryGroup::CreateConverterCategory();
+    auto converterCategory = NavCategoryStates::CreateConverterCategoryGroup();
     for (auto const& category : converterCategory->Categories)
     {
         /* Id, CategoryName, SupportsNegative */
-        categoriesList->emplace_back(NavCategory::Serialize(category->Mode), category->Name->Data(), category->SupportsNegative);
+        categoriesList->emplace_back(NavCategoryStates::Serialize(category->ViewMode), category->Name->Data(), category->SupportsNegative);
     }
 }
 
@@ -822,7 +822,7 @@ void UnitConverterDataLoader::GetConversionData(_In_ unordered_map<ViewMode, uno
                                                    { ViewMode::Data, UnitConverterUnits::Data_Zebibytes, 1180591620717411.303424 },
                                                    { ViewMode::Data, UnitConverterUnits::Data_Yobibits, 151115727451828646.838272 },
                                                    { ViewMode::Data, UnitConverterUnits::Data_Yobibytes, 1208925819614629174.706176 },
-                                                   { ViewMode::Data, UnitConverterUnits::Data_FloppyDisk, 1.509949 },
+                                                   { ViewMode::Data, UnitConverterUnits::Data_FloppyDisk, 1.474560 },
                                                    { ViewMode::Data, UnitConverterUnits::Data_CD, 734.003200 },
                                                    { ViewMode::Data, UnitConverterUnits::Data_DVD, 5046.586573 },
 
@@ -953,7 +953,7 @@ void UnitConverterDataLoader::GetConversionData(_In_ unordered_map<ViewMode, uno
 
 wstring UnitConverterDataLoader::GetLocalizedStringName(String ^ stringId)
 {
-    return AppResourceProvider::GetInstance().GetResourceString(stringId)->Data();
+    return AppResourceProvider::GetInstance()->GetResourceString(stringId)->Data();
 }
 
 void UnitConverterDataLoader::GetExplicitConversionData(_In_ unordered_map<int, unordered_map<int, UCM::ConversionData>>& unitToUnitConversionList)

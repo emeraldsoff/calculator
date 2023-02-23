@@ -2,13 +2,14 @@
 // Licensed under the MIT License.
 
 using OpenQA.Selenium.Appium.Windows;
+
 using System;
+using System.Globalization;
 
 namespace CalculatorUITestFramework
 {
     public class NumberPad
     {
-        private WindowsDriver<WindowsElement> session => WinAppDriver.Instance.CalculatorSession;
         public WindowsElement Num0Button => this.session.TryFindElementByAccessibilityId("num0Button");
         public WindowsElement Num1Button => this.session.TryFindElementByAccessibilityId("num1Button");
         public WindowsElement Num2Button => this.session.TryFindElementByAccessibilityId("num2Button");
@@ -22,13 +23,15 @@ namespace CalculatorUITestFramework
         public WindowsElement DecimalButton => this.session.TryFindElementByAccessibilityId("decimalSeparatorButton");
         public WindowsElement NegateButton => this.session.TryFindElementByAccessibilityId("negateButton");
 
+        private WindowsDriver<WindowsElement> session => WinAppDriver.Instance.CalculatorSession;
+
         /// <summary>
         /// Translates a number into the Calculator button clicks.
         /// </summary>
         /// <param name="number">Number to be entered into the calculator.</param>
         public void Input(double number)
         {
-            string numberStr = number.ToString();
+            string numberStr = number.ToString(CultureInfo.InvariantCulture);
             if (numberStr.StartsWith("-"))
             {
                 numberStr = numberStr.Substring(1) + "-";
@@ -74,7 +77,7 @@ namespace CalculatorUITestFramework
                         this.NegateButton.Click();
                         break;
                     default:
-                        throw (new ArgumentException(String.Format("{0} is not valid", digit)));
+                        throw (new ArgumentException($"{digit} is not valid"));
                 }
             }
         }

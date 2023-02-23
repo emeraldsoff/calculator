@@ -2,17 +2,19 @@
 // Licensed under the MIT License.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Windows;
+
 using System;
-using System.Diagnostics;
 
 namespace CalculatorUITestFramework
 {
     public sealed class WinAppDriver
     {
         private WindowsDriverLocalService windowsDriverService = null;
-        private const string calculatorAppId = "Microsoft.WindowsCalculator.Dev_8wekyb3d8bbwe!App";
+        public MemoryPanel MemoryPanel = new MemoryPanel();
+        private const string defaultAppId = "Microsoft.WindowsCalculator.Dev_8wekyb3d8bbwe!App";
         private static WinAppDriver instance = null;
         public static WinAppDriver Instance
         {
@@ -29,7 +31,6 @@ namespace CalculatorUITestFramework
 
         public WindowsDriver<WindowsElement> CalculatorSession { get; private set; }
 
-
         private WinAppDriver()
         {
         }
@@ -38,14 +39,14 @@ namespace CalculatorUITestFramework
         {
             this.windowsDriverService = new WindowsDriverServiceBuilder().Build();
 
-            this.windowsDriverService.OutputDataReceived += new DataReceivedEventHandler((sender, e) =>
+            this.windowsDriverService.OutputDataReceived += (sender, e) =>
             {
                 var outputData = e.Data?.Replace("\0", string.Empty);
-                if (!String.IsNullOrEmpty(outputData))
+                if (!string.IsNullOrEmpty(outputData))
                 {
                     Console.WriteLine(outputData);
                 }
-            });
+            };
 
             this.windowsDriverService.Start();
 
@@ -55,7 +56,16 @@ namespace CalculatorUITestFramework
                 // Create a new  WinAppDriver session to bring up an instance of the Calculator application
                 // Note: Multiple calculator windows (instances) share the same process Id
                 var options = new AppiumOptions();
-                options.AddAdditionalCapability("app", calculatorAppId);
+
+                if (context.Properties.Contains("AppId"))
+                {
+                    options.AddAdditionalCapability("app", (string)context.Properties["AppId"]);
+                }
+                else
+                {
+                    options.AddAdditionalCapability("app", defaultAppId);
+                }
+
                 options.AddAdditionalCapability("deviceName", "WindowsPC");
                 this.CalculatorSession = new WindowsDriver<WindowsElement>(this.windowsDriverService.ServiceUrl, options);
                 this.CalculatorSession.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
@@ -78,7 +88,6 @@ namespace CalculatorUITestFramework
                 this.windowsDriverService = null;
             }
         }
-
 
     }
 }

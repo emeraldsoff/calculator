@@ -7,7 +7,6 @@
 #include "Common/Utils.h"
 #include "Common/NetworkManager.h"
 #include "Common/Automation/NarratorAnnouncement.h"
-#include "Common/ConversionResultTaskHelper.h"
 #include "Common/CalculatorButtonUser.h"
 #include "Common/NavCategory.h"
 
@@ -34,6 +33,11 @@ namespace CalculatorApp
                 {
                     return m_original.supportsNegative ? Windows::UI::Xaml::Visibility::Visible : Windows::UI::Xaml::Visibility::Collapsed;
                 }
+            }
+
+            int GetModelCategoryId()
+            {
+                return GetModelCategory().id;
             }
 
             internal : const UnitConversionManager::Category& GetModelCategory() const
@@ -71,10 +75,22 @@ namespace CalculatorApp
                 return AccessibleName;
             }
 
-            internal : const UnitConversionManager::Unit& GetModelUnit() const
+        public:
+            bool IsModelUnitWhimsical()
             {
-                return m_original;
+                return m_original.isWhimsical;
             }
+
+            int ModelUnitID()
+            {
+                return m_original.id;
+            }
+
+        internal:
+        const UnitConversionManager::Unit& GetModelUnit() const
+        {
+            return m_original;
+        }
 
         private:
             const UnitConversionManager::Unit m_original;
@@ -82,27 +98,28 @@ namespace CalculatorApp
 
         [Windows::UI::Xaml::Data::Bindable] public ref class SupplementaryResult sealed : public Windows::UI::Xaml::Data::INotifyPropertyChanged
         {
-            internal : SupplementaryResult(Platform::String ^ value, Unit ^ unit)
+        internal:
+            SupplementaryResult(Platform::String ^ value, Unit ^ unit)
                 : m_Value(value)
                 , m_Unit(unit)
             {
             }
 
-            bool IsWhimsical() const
+        public:
+            bool IsWhimsical()
             {
                 return m_Unit->GetModelUnit().isWhimsical;
             }
 
             Platform::String ^ GetLocalizedAutomationName();
 
-        public:
             OBSERVABLE_OBJECT();
 
             OBSERVABLE_PROPERTY_R(Platform::String ^, Value);
             OBSERVABLE_PROPERTY_R(CalculatorApp::ViewModel::Unit ^, Unit);
         };
 
-        interface class IActivatable
+        public interface class IActivatable
         {
             virtual property bool IsActive;
         };
@@ -144,8 +161,7 @@ namespace CalculatorApp
             OBSERVABLE_OBJECT_CALLBACK(OnPropertyChanged);
 
             OBSERVABLE_PROPERTY_R(Windows::Foundation::Collections::IObservableVector<Category ^> ^, Categories);
-            OBSERVABLE_PROPERTY_RW(Category ^, CurrentCategory);
-            OBSERVABLE_PROPERTY_RW(CalculatorApp::Common::ViewMode, Mode);
+            OBSERVABLE_PROPERTY_RW(CalculatorApp::ViewModel::Common::ViewMode, Mode);
             OBSERVABLE_PROPERTY_R(Windows::Foundation::Collections::IObservableVector<Unit ^> ^, Units);
             OBSERVABLE_PROPERTY_RW(Platform::String ^, CurrencySymbol1);
             OBSERVABLE_PROPERTY_RW(Unit ^, Unit1);
@@ -160,18 +176,38 @@ namespace CalculatorApp
             OBSERVABLE_PROPERTY_RW(Platform::String ^, Value2AutomationName);
             OBSERVABLE_PROPERTY_RW(Platform::String ^, Unit1AutomationName);
             OBSERVABLE_PROPERTY_RW(Platform::String ^, Unit2AutomationName);
-            OBSERVABLE_PROPERTY_RW(CalculatorApp::Common::Automation::NarratorAnnouncement ^, Announcement);
+            OBSERVABLE_PROPERTY_RW(CalculatorApp::ViewModel::Common::Automation::NarratorAnnouncement ^, Announcement);
             OBSERVABLE_PROPERTY_RW(bool, IsDecimalEnabled);
             OBSERVABLE_PROPERTY_RW(bool, IsDropDownOpen);
             OBSERVABLE_PROPERTY_RW(bool, IsDropDownEnabled);
             OBSERVABLE_NAMED_PROPERTY_RW(bool, IsCurrencyLoadingVisible);
-            OBSERVABLE_PROPERTY_RW(bool, IsCurrencyCurrentCategory);
+            OBSERVABLE_NAMED_PROPERTY_R(bool, IsCurrencyCurrentCategory);
             OBSERVABLE_PROPERTY_RW(Platform::String ^, CurrencyRatioEquality);
             OBSERVABLE_PROPERTY_RW(Platform::String ^, CurrencyRatioEqualityAutomationName);
             OBSERVABLE_PROPERTY_RW(Platform::String ^, CurrencyTimestamp);
-            OBSERVABLE_NAMED_PROPERTY_RW(CalculatorApp::NetworkAccessBehavior, NetworkBehavior);
+            OBSERVABLE_NAMED_PROPERTY_RW(CalculatorApp::ViewModel::Common::NetworkAccessBehavior, NetworkBehavior);
             OBSERVABLE_NAMED_PROPERTY_RW(bool, CurrencyDataLoadFailed);
             OBSERVABLE_NAMED_PROPERTY_RW(bool, CurrencyDataIsWeekOld);
+
+        public:
+            property Category ^ CurrentCategory
+            {
+                Category ^ get() { return m_CurrentCategory; }
+                void set(Category ^ value)
+                {
+                    if (m_CurrentCategory == value)
+                    {
+                        return;
+                    }
+                    m_CurrentCategory = value;
+                    if (value != nullptr)
+                    {
+                        auto currentCategory = value->GetModelCategory();
+                        IsCurrencyCurrentCategory = currentCategory.id == CalculatorApp::ViewModel::Common::NavCategoryStates::Serialize(CalculatorApp::ViewModel::Common::ViewMode::Currency);
+                    }
+                    RaisePropertyChanged("CurrentCategory");
+                }
+            }
 
             property Windows::UI::Xaml::Visibility SupplementaryVisibility
             {
@@ -199,18 +235,31 @@ namespace CalculatorApp
 
             void AnnounceConversionResult();
 
+            void OnPaste(Platform::String ^ stringToPaste);
+            void RefreshCurrencyRatios();
+            void OnValueActivated(IActivatable ^ control);
+
             internal : void ResetView();
             void PopulateData();
-            NumbersAndOperatorsEnum MapCharacterToButtonId(const wchar_t ch, bool& canSendNegate);
+            CalculatorApp::ViewModel::Common::NumbersAndOperatorsEnum MapCharacterToButtonId(const wchar_t ch, bool& canSendNegate);
             void DisplayPasteError();
-            void OnValueActivated(IActivatable ^ control);
-            void OnPaste(Platform::String ^ stringToPaste, CalculatorApp::Common::ViewMode mode);
 
             void OnCopyCommand(Platform::Object ^ parameter);
             void OnPasteCommand(Platform::Object ^ parameter);
 
+            enum class CurrencyFormatterParameter
+            {
+                Default,
+                ForValue1,
+                ForValue2,
+            };
+
             Platform::String
-                ^ GetLocalizedAutomationName(_In_ Platform::String ^ displayvalue, _In_ Platform::String ^ unitname, _In_ Platform::String ^ format);
+                ^ GetLocalizedAutomationName(
+                    _In_ Platform::String ^ displayvalue,
+                    _In_ Platform::String ^ unitname,
+                    _In_ Platform::String ^ format,
+                    _In_ CurrencyFormatterParameter cfp);
             Platform::String
                 ^ GetLocalizedConversionResultStringFormat(
                     _In_ Platform::String ^ fromValue,
@@ -226,8 +275,7 @@ namespace CalculatorApp
 
             void OnCurrencyDataLoadFinished(bool didLoad);
             void OnCurrencyTimestampUpdated(_In_ const std::wstring& timestamp, bool isWeekOld);
-            void RefreshCurrencyRatios();
-            void OnNetworkBehaviorChanged(_In_ CalculatorApp::NetworkAccessBehavior newBehavior);
+            void OnNetworkBehaviorChanged(_In_ CalculatorApp::ViewModel::Common::NetworkAccessBehavior newBehavior);
 
             const std::wstring& GetValueFromUnlocalized() const
             {
@@ -253,18 +301,18 @@ namespace CalculatorApp
             void OnCategoryChanged(Platform::Object ^ unused);
             void OnUnitChanged(Platform::Object ^ unused);
             void OnSwitchActive(Platform::Object ^ unused);
-            UnitConversionManager::Command CommandFromButtonId(CalculatorApp::NumbersAndOperatorsEnum button);
+            UnitConversionManager::Command CommandFromButtonId(CalculatorApp::ViewModel::Common::NumbersAndOperatorsEnum button);
             void SupplementaryResultsTimerTick(Windows::System::Threading::ThreadPoolTimer ^ timer);
             void SupplementaryResultsTimerCancel(Windows::System::Threading::ThreadPoolTimer ^ timer);
             void RefreshSupplementaryResults();
             void UpdateInputBlocked(_In_ const std::wstring& currencyInput);
+            void UpdateCurrencyFormatter();
+            void UpdateIsDecimalEnabled();
             bool UnitsAreValid();
             void ResetCategory();
 
             void OnButtonPressed(Platform::Object ^ parameter);
-            Platform::String ^ ConvertToLocalizedString(const std::wstring& stringToLocalize, bool allowPartialStrings);
-
-            void StartConversionResultTimer();
+            Platform::String ^ ConvertToLocalizedString(const std::wstring& stringToLocalize, bool allowPartialStrings, CurrencyFormatterParameter cfp);
 
             std::shared_ptr<UnitConversionManager::IUnitConverter> m_model;
             wchar_t m_decimalSeparator;
@@ -274,6 +322,34 @@ namespace CalculatorApp
                 Source,
                 Target
             } m_value1cp;
+            property CurrencyFormatterParameter CurrencyFormatterParameterFrom
+            {
+                CurrencyFormatterParameter get()
+                {
+                    return m_value1cp == ConversionParameter::Source ? CurrencyFormatterParameter::ForValue1 : CurrencyFormatterParameter::ForValue2;
+                }
+            }
+            property CurrencyFormatterParameter CurrencyFormatterParameterTo
+            {
+                CurrencyFormatterParameter get()
+                {
+                    return m_value1cp == ConversionParameter::Target ? CurrencyFormatterParameter::ForValue1 : CurrencyFormatterParameter::ForValue2;
+                }
+            }
+            property Windows::Globalization::NumberFormatting::CurrencyFormatter^ CurrencyFormatterFrom
+            {
+                Windows::Globalization::NumberFormatting::CurrencyFormatter^ get()
+                {
+                    return m_value1cp == ConversionParameter::Source ? m_currencyFormatter1 : m_currencyFormatter2;
+                }
+            }
+            property Windows::Globalization::NumberFormatting::CurrencyFormatter^ CurrencyFormatterTo
+            {
+                Windows::Globalization::NumberFormatting::CurrencyFormatter^ get()
+                {
+                    return m_value1cp == ConversionParameter::Target ? m_currencyFormatter1 : m_currencyFormatter2;
+                }
+            }
             property Platform::String^ ValueFrom
             {
                 Platform::String^ get() { return m_value1cp == ConversionParameter::Source ? Value1 : Value2; }
@@ -307,12 +383,11 @@ namespace CalculatorApp
             std::mutex m_cacheMutex;
             Windows::Globalization::NumberFormatting::DecimalFormatter ^ m_decimalFormatter;
             Windows::Globalization::NumberFormatting::CurrencyFormatter ^ m_currencyFormatter;
-            int m_currencyMaxFractionDigits;
+            Windows::Globalization::NumberFormatting::CurrencyFormatter ^ m_currencyFormatter1;
+            Windows::Globalization::NumberFormatting::CurrencyFormatter ^ m_currencyFormatter2;
             std::wstring m_valueFromUnlocalized;
             std::wstring m_valueToUnlocalized;
             bool m_relocalizeStringOnSwitch;
-            // For Saving the User Preferences only if the Unit converter ViewModel is initialised for the first time
-            bool m_IsFirstTime;
 
             Platform::String ^ m_localizedValueFromFormat;
             Platform::String ^ m_localizedValueFromDecimalFormat;
@@ -326,10 +401,8 @@ namespace CalculatorApp
             std::wstring m_lastAnnouncedFrom;
             std::wstring m_lastAnnouncedTo;
             Platform::String ^ m_lastAnnouncedConversionResult;
-
+            Category ^ m_CurrentCategory;
             bool m_isCurrencyDataLoaded;
-
-            std::unique_ptr<CalculatorApp::Common::ConversionResultTaskHelper> m_conversionResultTaskHelper;
         };
 
         class UnitConverterVMCallback : public UnitConversionManager::IUnitConverterVMCallback
@@ -395,7 +468,7 @@ namespace CalculatorApp
 
             void NetworkBehaviorChanged(_In_ int newBehavior) override
             {
-                m_viewModel->OnNetworkBehaviorChanged(static_cast<CalculatorApp::NetworkAccessBehavior>(newBehavior));
+                m_viewModel->OnNetworkBehaviorChanged(static_cast<CalculatorApp::ViewModel::Common::NetworkAccessBehavior>(newBehavior));
             }
 
         private:

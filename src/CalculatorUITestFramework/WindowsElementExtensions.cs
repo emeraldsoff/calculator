@@ -3,8 +3,9 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
+
 using OpenQA.Selenium.Appium.Windows;
-using System;
+
 using System.Diagnostics;
 using System.Threading;
 
@@ -33,7 +34,7 @@ namespace CalculatorUITestFramework
                 Thread.Sleep(10);
             }
             timer.Stop();
-            Assert.Fail(String.Format("{0} was not displayed in {1} ms", element, timeout));
+            Assert.Fail($"{element} was not displayed in {timeout} ms");
         }
     }
 }

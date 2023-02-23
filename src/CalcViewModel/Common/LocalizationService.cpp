@@ -6,8 +6,9 @@
 #include "LocalizationSettings.h"
 #include "AppResourceProvider.h"
 
-using namespace CalculatorApp::Common;
-using namespace CalculatorApp::Common::LocalizationServiceProperties;
+using namespace CalculatorApp::ViewModel::Common;
+using namespace CalculatorApp::ViewModel::Common::LocalizationServiceProperties;
+using namespace CalculatorApp::ViewModel;
 using namespace Concurrency;
 using namespace Platform;
 using namespace Platform::Collections;
@@ -62,7 +63,7 @@ LocalizationService ^ LocalizationService::GetInstance()
 /// <remarks>
 /// Should only be used for test purpose
 /// </remarks>
-void LocalizationService::OverrideWithLanguage(_In_ const wchar_t * const language)
+void LocalizationService::OverrideWithLanguage(_In_ const wchar_t* const language)
 {
     s_singletonInstance = ref new LocalizationService(language);
 }
@@ -75,20 +76,35 @@ LocalizationService::LocalizationService(_In_ const wchar_t * const overridedLan
 {
     m_isLanguageOverrided = overridedLanguage != nullptr;
     m_language = m_isLanguageOverrided ? ref new Platform::String(overridedLanguage) : ApplicationLanguages::Languages->GetAt(0);
-    m_flowDirection = ResourceContext::GetForCurrentView()->QualifierValues->Lookup(L"LayoutDirection")
+    m_flowDirection = ResourceContext::GetForViewIndependentUse()->QualifierValues->Lookup(L"LayoutDirection")
         != L"LTR" ? FlowDirection::RightToLeft : FlowDirection::LeftToRight;
+    wstring localeName = wstring(m_language->Data());
+    localeName += L".UTF8";
 
+    try
+    {
+        // Convert wstring to string for locale
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, &localeName[0], (int)localeName.size(), NULL, 0, NULL, NULL);
+        string localeNameStr(size_needed, 0);
+        WideCharToMultiByte(CP_UTF8, 0, &localeName[0], (int)localeName.size(), &localeNameStr[0], size_needed, NULL, NULL);
+
+        m_locale = locale(localeNameStr.data());
+    }
+    catch (...)
+    {
+        m_locale = locale("");
+    }
     auto resourceLoader = AppResourceProvider::GetInstance();
-    m_fontFamilyOverride = resourceLoader.GetResourceString(L"LocalizedFontFamilyOverride");
+    m_fontFamilyOverride = resourceLoader->GetResourceString(L"LocalizedFontFamilyOverride");
 
     String ^ reserved = L"RESERVED_FOR_FONTLOC";
 
     m_overrideFontApiValues = ((m_fontFamilyOverride != nullptr) && (m_fontFamilyOverride != reserved));
     if (m_overrideFontApiValues)
     {
-        String ^ localizedUICaptionFontSizeFactorOverride = resourceLoader.GetResourceString(L"LocalizedUICaptionFontSizeFactorOverride");
-        String ^ localizedUITextFontSizeFactorOverride = resourceLoader.GetResourceString(L"LocalizedUITextFontSizeFactorOverride");
-        String ^ localizedFontWeightOverride = resourceLoader.GetResourceString(L"LocalizedFontWeightOverride");
+        String ^ localizedUICaptionFontSizeFactorOverride = resourceLoader->GetResourceString(L"LocalizedUICaptionFontSizeFactorOverride");
+        String ^ localizedUITextFontSizeFactorOverride = resourceLoader->GetResourceString(L"LocalizedUITextFontSizeFactorOverride");
+        String ^ localizedFontWeightOverride = resourceLoader->GetResourceString(L"LocalizedFontWeightOverride");
 
         // If any of the font overrides are modified then all of them need to be modified
         assert(localizedFontWeightOverride != reserved);
@@ -356,7 +372,7 @@ void LocalizationService::UpdateFontFamilyAndSize(DependencyObject ^ target)
 
 // If successful, returns a formatter that respects the user's regional format settings,
 // as configured by running intl.cpl.
-DecimalFormatter ^ LocalizationService::GetRegionalSettingsAwareDecimalFormatter() const
+DecimalFormatter ^ LocalizationService::GetRegionalSettingsAwareDecimalFormatter()
 {
     IIterable<String ^> ^ languageIdentifiers = LocalizationService::GetLanguageIdentifiers();
     if (languageIdentifiers != nullptr)
@@ -371,7 +387,7 @@ DecimalFormatter ^ LocalizationService::GetRegionalSettingsAwareDecimalFormatter
 // as configured by running intl.cpl.
 //
 // This helper function creates a DateTimeFormatter with a TwentyFour hour clock
-DateTimeFormatter ^ LocalizationService::GetRegionalSettingsAwareDateTimeFormatter(_In_ String^ format) const
+DateTimeFormatter ^ LocalizationService::GetRegionalSettingsAwareDateTimeFormatter(_In_ String ^ format)
 {
     IIterable<String ^> ^ languageIdentifiers = LocalizationService::GetLanguageIdentifiers();
     if (languageIdentifiers == nullptr)
@@ -384,7 +400,7 @@ DateTimeFormatter ^ LocalizationService::GetRegionalSettingsAwareDateTimeFormatt
 
 // If successful, returns a formatter that respects the user's regional format settings,
 // as configured by running intl.cpl.
-DateTimeFormatter^ LocalizationService::GetRegionalSettingsAwareDateTimeFormatter(_In_ String ^ format, _In_ String ^ calendarIdentifier, _In_ String ^ clockIdentifier) const
+DateTimeFormatter ^ LocalizationService::GetRegionalSettingsAwareDateTimeFormatter(_In_ String ^ format, _In_ String ^ calendarIdentifier, _In_ String ^ clockIdentifier)
 {
     IIterable<String ^> ^ languageIdentifiers = LocalizationService::GetLanguageIdentifiers();
     if (languageIdentifiers == nullptr)
@@ -395,7 +411,7 @@ DateTimeFormatter^ LocalizationService::GetRegionalSettingsAwareDateTimeFormatte
     return ref new DateTimeFormatter(format, languageIdentifiers, GlobalizationPreferences::HomeGeographicRegion, calendarIdentifier, clockIdentifier);
 }
 
-CurrencyFormatter ^ LocalizationService::GetRegionalSettingsAwareCurrencyFormatter() const
+CurrencyFormatter ^ LocalizationService::GetRegionalSettingsAwareCurrencyFormatter()
 {
     String ^ userCurrency =
         (GlobalizationPreferences::Currencies->Size > 0) ? GlobalizationPreferences::Currencies->GetAt(0) : StringReference(DefaultCurrencyCode.data());
@@ -408,7 +424,7 @@ CurrencyFormatter ^ LocalizationService::GetRegionalSettingsAwareCurrencyFormatt
 
     auto currencyFormatter = ref new CurrencyFormatter(userCurrency, languageIdentifiers, GlobalizationPreferences::HomeGeographicRegion);
 
-    int fractionDigits = LocalizationSettings::GetInstance().GetCurrencyTrailingDigits();
+    int fractionDigits = LocalizationSettings::GetInstance()->GetCurrencyTrailingDigits();
     currencyFormatter->FractionDigits = fractionDigits;
 
     return currencyFormatter;
@@ -421,7 +437,7 @@ IIterable<String ^> ^ LocalizationService::GetLanguageIdentifiers() const
 
     if (m_isLanguageOverrided)
     {
-        auto overridedLanguageList = ref new Vector<String^>();
+        auto overridedLanguageList = ref new Vector<String ^>();
         overridedLanguageList->Append(m_language);
         return overridedLanguageList;
     }
@@ -488,16 +504,49 @@ unordered_map<wstring, wstring> LocalizationService::GetTokenToReadableNameMap()
                                                                           make_pair<wstring, wstring>(L"27", L"HyperbolicTangent"),
                                                                           make_pair<wstring, wstring>(L"87", L"InverseHyperbolicTangent"),
 
+                                                                          // Secant permutations
+                                                                          make_pair<wstring, wstring>(L"SecDeg", L"SecantDegrees"),
+                                                                          make_pair<wstring, wstring>(L"SecRad", L"SecantRadians"),
+                                                                          make_pair<wstring, wstring>(L"SecGrad", L"SecantGradians"),
+                                                                          make_pair<wstring, wstring>(L"InverseSecDeg", L"InverseSecantDegrees"),
+                                                                          make_pair<wstring, wstring>(L"InverseSecRad", L"InverseSecantRadians"),
+                                                                          make_pair<wstring, wstring>(L"InverseSecGrad", L"InverseSecantGradians"),
+                                                                          make_pair<wstring, wstring>(L"Sech", L"HyperbolicSecant"),
+                                                                          make_pair<wstring, wstring>(L"InverseSech", L"InverseHyperbolicSecant"),
+
+                                                                          // Cosecant permutations
+                                                                          make_pair<wstring, wstring>(L"CscDeg", L"CosecantDegrees"),
+                                                                          make_pair<wstring, wstring>(L"CscRad", L"CosecantRadians"),
+                                                                          make_pair<wstring, wstring>(L"CscGrad", L"CosecantGradians"),
+                                                                          make_pair<wstring, wstring>(L"InverseCscDeg", L"InverseCosecantDegrees"),
+                                                                          make_pair<wstring, wstring>(L"InverseCscRad", L"InverseCosecantRadians"),
+                                                                          make_pair<wstring, wstring>(L"InverseCscGrad", L"InverseCosecantGradians"),
+                                                                          make_pair<wstring, wstring>(L"Csch", L"HyperbolicCosecant"),
+                                                                          make_pair<wstring, wstring>(L"InverseCsch", L"InverseHyperbolicCosecant"),
+
+                                                                          // Cotangent permutations
+                                                                          make_pair<wstring, wstring>(L"CotDeg", L"CotangentDegrees"),
+                                                                          make_pair<wstring, wstring>(L"CotRad", L"CotangentRadians"),
+                                                                          make_pair<wstring, wstring>(L"CotGrad", L"CotangentGradians"),
+                                                                          make_pair<wstring, wstring>(L"InverseCotDeg", L"InverseCotangentDegrees"),
+                                                                          make_pair<wstring, wstring>(L"InverseCotRad", L"InverseCotangentRadians"),
+                                                                          make_pair<wstring, wstring>(L"InverseCotGrad", L"InverseCotangentGradians"),
+                                                                          make_pair<wstring, wstring>(L"Coth", L"HyperbolicCotangent"),
+                                                                          make_pair<wstring, wstring>(L"InverseCoth", L"InverseHyperbolicCotangent"),
+
                                                                           // Miscellaneous Scientific functions
                                                                           make_pair<wstring, wstring>(L"94", L"Factorial"),
                                                                           make_pair<wstring, wstring>(L"35", L"DegreeMinuteSecond"),
                                                                           make_pair<wstring, wstring>(L"28", L"NaturalLog"),
-                                                                          make_pair<wstring, wstring>(L"91", L"Square")
+                                                                          make_pair<wstring, wstring>(L"91", L"Square"),
+                                                                          make_pair<wstring, wstring>(L"CubeRoot", L"CubeRoot"),
+                                                                          make_pair<wstring, wstring>(L"Abs", L"AbsoluteValue")
     };
 
     static vector<pair<wstring, wstring>> s_noParenEngineKeyResourceMap = { // Programmer mode functions
                                                                             make_pair<wstring, wstring>(L"9", L"LeftShift"),
                                                                             make_pair<wstring, wstring>(L"10", L"RightShift"),
+                                                                            make_pair<wstring, wstring>(L"LogBaseY", L"Logy"),
 
                                                                             // Y Root scientific function
                                                                             make_pair<wstring, wstring>(L"16", L"YRoot")
@@ -506,12 +555,12 @@ unordered_map<wstring, wstring> LocalizationService::GetTokenToReadableNameMap()
     unordered_map<wstring, wstring> tokenToReadableNameMap{};
     auto resProvider = AppResourceProvider::GetInstance();
 
-    static const wstring openParen = resProvider.GetCEngineString(StringReference(s_openParenResourceKey))->Data();
+    static const wstring openParen = resProvider->GetCEngineString(StringReference(s_openParenResourceKey))->Data();
 
     for (const auto& keyPair : s_parenEngineKeyResourceMap)
     {
-        wstring engineStr = resProvider.GetCEngineString(StringReference(keyPair.first.c_str()))->Data();
-        wstring automationName = resProvider.GetResourceString(StringReference(keyPair.second.c_str()))->Data();
+        wstring engineStr = resProvider->GetCEngineString(StringReference(keyPair.first.c_str()))->Data();
+        wstring automationName = resProvider->GetResourceString(StringReference(keyPair.second.c_str()))->Data();
 
         tokenToReadableNameMap.emplace(engineStr + openParen, automationName);
     }
@@ -519,15 +568,15 @@ unordered_map<wstring, wstring> LocalizationService::GetTokenToReadableNameMap()
 
     for (const auto& keyPair : s_noParenEngineKeyResourceMap)
     {
-        wstring engineStr = resProvider.GetCEngineString(StringReference(keyPair.first.c_str()))->Data();
-        wstring automationName = resProvider.GetResourceString(StringReference(keyPair.second.c_str()))->Data();
+        wstring engineStr = resProvider->GetCEngineString(StringReference(keyPair.first.c_str()))->Data();
+        wstring automationName = resProvider->GetResourceString(StringReference(keyPair.second.c_str()))->Data();
 
         tokenToReadableNameMap.emplace(engineStr, automationName);
     }
     s_noParenEngineKeyResourceMap.clear();
 
     // Also replace hyphens with "minus"
-    wstring minusText = resProvider.GetResourceString(L"minus")->Data();
+    wstring minusText = resProvider->GetResourceString(L"minus")->Data();
     tokenToReadableNameMap.emplace(L"-", minusText);
 
     return tokenToReadableNameMap;
@@ -544,21 +593,28 @@ String ^ LocalizationService::GetNarratorReadableToken(String ^ rawToken)
     }
     else
     {
-        static const String ^ openParen = AppResourceProvider::GetInstance().GetCEngineString(StringReference(s_openParenResourceKey));
+        static const String ^ openParen = AppResourceProvider::GetInstance()->GetCEngineString(StringReference(s_openParenResourceKey));
         return ref new String(itr->second.c_str()) + L" " + openParen;
     }
 }
 
 String ^ LocalizationService::GetNarratorReadableString(String ^ rawString)
 {
-    wstringstream readableString{};
-    readableString << L"";
+    wstring readableString{};
 
     wstring asWstring = rawString->Data();
     for (const auto& c : asWstring)
     {
-        readableString << LocalizationService::GetNarratorReadableToken(L"" + c)->Data();
+        readableString += LocalizationService::GetNarratorReadableToken(ref new String(&c, 1))->Data();
     }
 
-    return ref new String(readableString.str().c_str());
+    return ref new String(readableString.c_str());
+}
+
+void LocalizationService::Sort(std::vector<Platform::String ^>& source)
+{
+    const collate<wchar_t>& coll = use_facet<collate<wchar_t>>(m_locale);
+    sort(source.begin(), source.end(), [&coll](Platform::String ^ str1, Platform::String ^ str2) {
+        return coll.compare(str1->Begin(), str1->End(), str2->Begin(), str2->End()) < 0;
+    });
 }

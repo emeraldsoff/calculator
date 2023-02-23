@@ -1,10 +1,10 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
 #include "pch.h"
 #include "ExpressionCommandDeserializer.h"
 
-using namespace CalculatorApp::Common;
+using namespace CalculatorApp::ViewModel::Common;
 using namespace Windows::Storage::Streams;
 
 CommandDeserializer::CommandDeserializer(_In_ DataReader ^ dataReader)
@@ -17,24 +17,16 @@ std::shared_ptr<IExpressionCommand> CommandDeserializer::Deserialize(_In_ Calcul
     switch (cmdType)
     {
     case CalculationManager::CommandType::OperandCommand:
-
         return std::make_shared<COpndCommand>(DeserializeOperand());
-        break;
 
     case CalculationManager::CommandType::Parentheses:
-
         return std::make_shared<CParentheses>(DeserializeParentheses());
-        break;
 
     case CalculationManager::CommandType::UnaryCommand:
-
         return std::make_shared<CUnaryCommand>(DeserializeUnary());
-        break;
 
     case CalculationManager::CommandType::BinaryCommand:
-
         return std::make_shared<CBinaryCommand>(DeserializeBinary());
-        break;
 
     default:
         throw ref new Platform::Exception(E_INVALIDARG, ref new Platform::String(L"Unknown command type"));
@@ -47,13 +39,13 @@ COpndCommand CommandDeserializer::DeserializeOperand()
     bool fDecimal = m_dataReader->ReadBoolean();
     bool fSciFmt = m_dataReader->ReadBoolean();
 
-    std::shared_ptr<CalculatorVector<int>> cmdVector = std::make_shared<CalculatorVector<int>>();
+    std::shared_ptr<std::vector<int>> cmdVector = std::make_shared<std::vector<int>>();
     auto cmdVectorSize = m_dataReader->ReadUInt32();
 
     for (unsigned int j = 0; j < cmdVectorSize; ++j)
     {
         int eachOpndcmd = m_dataReader->ReadInt32();
-        cmdVector->Append(eachOpndcmd);
+        cmdVector->push_back(eachOpndcmd);
     }
 
     return COpndCommand(cmdVector, fNegative, fDecimal, fSciFmt);
@@ -68,7 +60,6 @@ CParentheses CommandDeserializer::DeserializeParentheses()
 CUnaryCommand CommandDeserializer::DeserializeUnary()
 {
     auto cmdSize = m_dataReader->ReadUInt32();
-    std::shared_ptr<CalculatorVector<int>> cmdVector = std::make_shared<CalculatorVector<int>>();
 
     if (cmdSize == 1)
     {
